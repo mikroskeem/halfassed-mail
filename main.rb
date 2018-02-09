@@ -7,15 +7,60 @@ require 'rqrcode'
 server = WEBrick::HTTPServer.new(:Port => ARGV.first || "8080")
 #mysql = Mysql2::Client.new(:host => "127.0.0.1", :username => "root", :password => "replace_this_later")
 
+#mysql_table = File.open("tables.sql", "r") { |f| f.read }
+
+
+class Attachment
+    @url
+    @filename
+    @type
+    @size
+
+    def initialize(url, filename, type, size)
+        @url = url
+        @filename = filename
+        @type = type
+        @size = size
+    end
+
+    def to_s
+        "Attachment(url=#{@url}, filename=#{@filename}, type=#{@type}, size=#{@size})"
+    end
+end
+
+def parse_message_headers(form)
+    headers = Hash.new
+    parsed = JSON.parse(form)
+    parsed.each { |list| headers[list.shift] = list.shift }
+    return headers
+end
+
+def parse_attachments(form)
+    attachments = Array.new
+    parsed = JSON.parse(form)
+    parsed.each { |at| attachments.push(Attachment.new(at["url"], at["name"], at["content-type"], at["size"])) }
+    return attachments
+end
+
+
 server.mount_proc "/" do |req, res|
     res.status = 200
     res["Content-Type"] = "application/json"
-    res.body = JSON.pretty_generate({:message => "Hello World!"})
+    if req.path.end_with? ".json" or req.path.start_with? "/."
+        res.body = JSON.pretty_generate({:whoIsFat => "Your Mom!"})
+    else
+        res.body = JSON.pretty_generate({:message => "Hello World!"})
+    end
 end
 
 server.mount_proc "/qr" do |req, res|
+    message = req.query["text"] || "Add ?text=Hello to get your own text here"
+    if message.length > 150
+        message = "Message is too long, was #{message.length}/150"
+    end
+
     # Some day registrations will be done using TOTP
-    qrcode = RQRCode::QRCode::new("Hello")
+    qrcode = RQRCode::QRCode::new(message)
     res.body = qrcode.as_png().to_s
 end
 
@@ -25,19 +70,27 @@ server.mount_proc "/mg" do |req, res|
         res.status = 200
         res["Content-Type"] = "application/json"
 
-        # TODO: figure out how to get one header from headers
-        req.query["message-headers"].list().each { |k, v|
-            puts "#{k} --> #{v}"
-        }
+        # Parse message headers and attachments
+        headers = parse_message_headers(req.query["message-headers"])
+        attachments = req.query["attachments"].nil? ? nil : parse_attachments(req.query["attachments"])
+
+        puts req.query
 
         puts
         puts "From: #{req.query["sender"]} (\"#{req.query["From"]}\")"
         puts "To: #{req.query["recipient"]} (\"#{req.query["To"]}\")"
-        #puts "Content-Type: #{req.query["message-headers"]["Content-Type"]}"
+        puts "Content-Type: #{headers["Content-Type"]}"
         puts
         puts "#{req.query["subject"]}"
         puts
         puts "#{req.query["stripped-text"]}"
+        if !attachments.nil?
+            puts
+            puts "Attachments: "
+            attachments.each { |attachment|
+                puts "- #{attachment}"
+            }
+        end
 
         res.body = JSON.pretty_generate({:message => "Ok. Gotcha"})
     else
