@@ -1,3 +1,4 @@
+# Some stuff i nicked from template
 *.gem
 *.rbc
 /.config
@@ -21,3 +22,6 @@ Gemfile.lock
 .ruby-version
 .ruby-gemset
 .rvmrc
+
+# RubyMine
+.idea
