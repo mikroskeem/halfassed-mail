@@ -1,3 +1,5 @@
+require 'data/attachment'
+
 require 'webrick'
 require 'json'
 require 'rotp'
@@ -8,19 +10,6 @@ server = WEBrick::HTTPServer.new(Port: ARGV.first || '8080')
 # mysql = Mysql2::Client.new(:host => "127.0.0.1", :username => "root", :password => "replace_this_later")
 
 # mysql_table = File.open("tables.sql", "r") { |f| f.read }
-
-class Attachment
-  def initialize(url, filename, type, size)
-    @url = url
-    @filename = filename
-    @type = type
-    @size = size
-  end
-
-  def to_s
-    "Attachment(url=#{@url}, filename=#{@filename}, type=#{@type}, size=#{@size})"
-  end
-end
 
 def parse_message_headers(form)
   headers = {}
